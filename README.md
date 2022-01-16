@@ -8,4 +8,4 @@ This project is different from other, it doesn't download the entire webpage, it
 
 **I was writing this script as a task on UpLeveled Bootcamp.**
 
-You can see this project in action [here](https://replit.com/@radudotat/nodejs-meme-scraper-jan-2022)
+You can see this project in action [here](https://replit.com/@radudotat/Memeito)

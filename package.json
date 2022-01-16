@@ -1,6 +1,6 @@
 {
   "name": "nodejs-meme-scraper-jan-2022",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.js",
   "repository": "https://github.com/radudotat/nodejs-meme-scraper-jan-2022.git",
   "author": "Radu <gith@radu.at>",
@@ -9,6 +9,7 @@
   "devDependencies": {
     "@babel/eslint-parser": "^7.16.5",
     "@next/eslint-plugin-next": "^12.0.7",
+    "@types/dom-parser": "^0.1.1",
     "@types/node": "^17.0.8",
     "@types/react": "^17.0.38",
     "@types/react-dom": "^17.0.11",
@@ -35,5 +36,15 @@
     "@typescript-eslint/parser": "5.9.0",
     "eslint-plugin-import": "2.25.4",
     "eslint-plugin-react": "7.28.0"
+  },
+  "scripts": {
+    "start": "node ."
+  },
+  "engines": {
+    "yarn": "^1.22",
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "dom-parser": "^0.1.6"
   }
 }

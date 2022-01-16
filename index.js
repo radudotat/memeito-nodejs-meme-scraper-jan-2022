@@ -1,107 +1,97 @@
-import events from 'node:events';
 import * as fs from 'node:fs/promises';
-import https from 'node:https';
+import DomParser from 'dom-parser';
+// Probably I will reuse my code and I want to have my snippets on other place
+import {
+  downloadAsset,
+  getIndexPage,
+  imagesEmitter,
+  leftFillNum,
+} from './lib/helpers.js';
 
-const pageUrl = 'https://memegen-link-examples-upleveled.netlify.app';
-const imagesEmitter = new events.EventEmitter();
 const targetDir = './memes';
+const pageUrl = 'https://memegen-link-examples-upleveled.netlify.app';
+const parser = new DomParser();
 
-function leftFillNum(num, targetLength) {
-  return num.toString().padStart(targetLength, 0);
-}
+const downloadedImages = [];
+let filteredImages,
+  deletePromises = [];
 
-// Get the HTML string from
-function getIndexPage(url) {
-  const pendingRequest = https.get(url, (res) => {
-    res.setEncoding('utf8');
-    let body = '';
-    res.on('data', (data) => {
-      body += data;
-      imagesEmitter.emit('😝', body);
-    });
-    res.on('end', () => {
-      // I'm already gone 🤫
-    });
-  });
-  imagesEmitter.on('🤪', () => {
-    // I know what I'm doing 🤣
-    pendingRequest.destroy();
-  });
-}
-
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest, { flags: 'wx' });
-
-    const request = https.get(url, (response) => {
-      if (response.statusCode === 200) {
-        response.pipe(file);
-      } else {
-        file.close();
-        await fs.unlink(dest, () => {});
-        reject(
-          `Server responded with ${response.statusCode}: ${response.statusMessage}`,
-        );
-      }
-    });
-
-    request.on('error', (err) => {
-      file.close();
-      await fs.unlink(dest, () => {});
-      reject(err.message);
-    });
-
-    file.on('finish', () => {
-      resolve();
-    });
-
-    file.on('error', (err) => {
-      file.close();
-
-      if (err.code === 'EEXIST') {
-        reject('File already exists');
-      } else {
-        await fs.unlink(dest, () => {});
-        reject(err.message);
-      }
-    });
-  });
-}
-
+// Use Events to avoid the global namespace 💩
 imagesEmitter.on('😝', (data) => {
-  const found = data.match(/<img.*src=(["|']([^>]+))/g);
-  if (found && found.length > 10) {
-    imagesEmitter.emit('🤪');
-    for (const [index, value] of Object.entries(found)) {
-      if (index < 10) {
-        const last = value.match(/src=["|']([^"|']+)/);
-        if (last && last[1]) {
-          await download(last[1], `${targetDir}/${leftFillNum(index, 2)}.jpg`);
-        }
-      }
-    }
+  if (downloadedImages.length >= 10) {
+    // We can't control the chunk of data delivered by server
+    // if we have downloaded more then 10 images we filter the array
+    filteredImages = downloadedImages.filter((src, index) => {
+      return index < 10;
+    });
+    // "Everybody lies" Dr.House
+    Promise.all(filteredImages)
+      .then(() => {
+        imagesEmitter.emit('🤪');
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+    console.log(
+      filteredImages,
+      `\nWe have ${filteredImages.length}... this is Spartaaaaaa! 💪`,
+    );
   }
+
+  // Create a DOM from the chunk of HTML
+  const dom = parser.parseFromString(data);
+  // Get image nodes
+  const nodes = dom.getElementsByTagName('img');
+
+  // Iterate nodes & extract img src
+  nodes.forEach((node) => {
+    const src = node.getAttribute('src');
+    // if image src is not in array we push it
+    if (downloadedImages.indexOf(src) === -1) {
+      downloadedImages.push(src);
+    }
+  });
 });
 
-// Make targetDir if doesn't exist
-if (!fs.existsSync(targetDir)) {
-  fs.mkdirSync(targetDir);
-}
-
-await fs.promises
-  .readdir(targetDir)
-  // If promise resolved and
-  // data are fetched
-  .then((filenames) => {
-    for (const filename of filenames) {
-      await fs.unlink(`${targetDir}/${filename}`, () => {});
-    }
-  })
-  // If promise is rejected
-  .catch((err) => {
-    console.log(err);
-  })
-  // Do this anyway
-  .then(() => {
-    getIndexPage(pageUrl);
+// my left ear
+imagesEmitter.on('🤪', () => {
+  filteredImages.forEach((src, index) => {
+    // console.log(`${index}. ${src}`);
+    const filename = `${leftFillNum(index, 2)}.jpg`;
+    downloadAsset(src, `${targetDir}/${filename}`).catch(() => {});
   });
+});
+
+// 1. We check if there is meme folder
+const initApp = async () => {
+  await fs.mkdir(targetDir).catch((err) => {
+    if (err.code === 'EEXIST') {
+      // Folder exist try to remove images if we have
+      // we make multiple promises
+      try {
+        fs.readdir(targetDir)
+          // If promise resolved and data are fetched
+          .then((filenames) => {
+            deletePromises = filenames.map(function (filename) {
+              return fs.unlink(`${targetDir}/${filename}`, () => {
+                console.log(`Deleted ${targetDir}/${filename}`);
+              });
+            });
+          })
+          // If promise is rejected
+          .catch(() => {});
+      } catch (e) {}
+
+      // "Everybody lies" Dr.House
+      Promise.all(deletePromises)
+        .then(() => {
+          getIndexPage(pageUrl);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
+  });
+};
+
+await initApp();
